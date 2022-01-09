@@ -1,0 +1,994 @@
+---
+title: "Modele lineaire generalise et Choix de modeles"
+author: "AGHA"
+date: "09/01/2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup , include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE, message=FALSE)
+```
+#I - 0bjectif de l’étude et description des données:
+Nous nous intéressons dans le cadre de cette étude aux choix et validation d’un modèle . Ensuite nous réalisons des prédictions afin de choisir le modèle le plus adéquat . Nous nous basons sur  une base de données contenant 1180 observations,47 variables quantitative et qualitatives (Pluie.demain=f (Tempmean, Humimean, MeanPressuremean Totalprecipitation, etc…. ).
+
+#I .1 Les démarches de la modélisation 
+Nous exposons en ce qui suit les démarches de la modélisation : 
+1-Analyse exploratoire 
+2-Vérification des liens entre les variables 
+3-Identification des prédicteurs les plus importants afin de construire un modèle valide pour faire une bonne prédiction
+4-Estimation de modèle sur un échantillon d’apprentissage
+5-Validation de modèle sur un échantillon test 
+6-Comparaison entre plusieurs modèles et choix du modèle le plus adéquat 
+7-Proposition d’une prédiction pour l’échantillon test
+ 
+
+#1-Analyse exploratoire des données:
+#1.1.Chargement des données
+
+```{r import.dataset }
+data=read.csv("meteo.train.csv",na.strings = "" )
+data1=read.csv("meteo.test.csv" )
+summary(data1)
+summary(data)
+head(data)
+str(data)
+
+```
+Nous allons renommer les variables des fichiers " meteo.train " & " meteo.test " :
+
+```{r Redéfinition DES VARIABLES meteo.train  }
+library(dplyr)
+
+data2=rename(Tempmean=Temperature.daily.mean..2.m.above.gnd.,Humimean=Relative.Humidity.daily.mean..2.m.above.gnd.,MeanPressuremean= Mean.Sea.Level.Pressure.daily.mean..MSL.   , Totalprecipitation= Total.Precipitation.daily.sum..sfc.         ,Snowfall=Snowfall.amount.raw.daily.sum..sfc.     ,Totalcloudmean= Total.Cloud.Cover.daily.mean..sfc.          ,Highcloudmean= High.Cloud.Cover.daily.mean..high.cld.lay.  , Mediumcloudmean= Medium.Cloud.Cover.daily.mean..mid.cld.lay.  ,Lowcloudmean=Low.Cloud.Cover.daily.mean..low.cld.lay.    ,Sunshine= Sunshine.Duration.daily.sum..sfc.           ,Waveradia= Shortwave.Radiation.daily.sum..sfc.         , Windspdmean10m= Wind.Speed.daily.mean..10.m.above.gnd.      , Winddirecmean10m=Wind.Direction.daily.mean..10.m.above.gnd.  , Windspdmean80m= Wind.Speed.daily.mean..80.m.above.gnd.      , Winddirectmean80m=Wind.Direction.daily.mean..80.m.above.gnd.  , Windspdmean900mb= Wind.Speed.daily.mean..900.mb.              ,  Winddirectmean900mb =Wind.Direction.daily.mean..900.mb.          , Windgustmean= Wind.Gust.daily.mean..sfc.                  , Tempmax=Temperature.daily.max..2.m.above.gnd.      ,Tempmin=Temperature.daily.min..2.m.above.gnd.     ,Humimax=Relative.Humidity.daily.max..2.m.above.gnd. ,Humimin= Relative.Humidity.daily.min..2.m.above.gnd. , Meanpressuremax=Mean.Sea.Level.Pressure.daily.max..MSL.     ,Meanpressuremin =Mean.Sea.Level.Pressure.daily.min..MSL.     , Totalcloudmax =Total.Cloud.Cover.daily.max..sfc.          ,Totalcloudmin =Total.Cloud.Cover.daily.min..sfc.           ,Highcloudmax= High.Cloud.Cover.daily.max..high.cld.lay.   , Highcloudmin= High.Cloud.Cover.daily.min..high.cld.lay.   ,Mediumcloudmax =Medium.Cloud.Cover.daily.max..mid.cld.lay.  ,Mediumcloudmin= Medium.Cloud.Cover.daily.min..mid.cld.lay.  , Lowcloudmax=Low.Cloud.Cover.daily.max..low.cld.lay.     
+               ,Lowcloudmin= Low.Cloud.Cover.daily.min..low.cld.lay.    ,Windspdmax10m=Wind.Speed.daily.max..10.m.above.gnd.       ,Windspdmin10m= Wind.Speed.daily.min..10.m.above.gnd.       , Windspdmax80m= Wind.Speed.daily.max..80.m.above.gnd.      ,Windspdmin80m=Wind.Speed.daily.min..80.m.above.gnd.      ,Windspdmax900mb= Wind.Speed.daily.max..900.mb.               ,Windspdmin900mb= Wind.Speed.daily.min..900.mb.               ,Windgustmax= Wind.Gust.daily.max..sfc.                  ,Windgustmin= Wind.Gust.daily.min..sfc.                   
+               ,data)
+
+names(data2)
+
+
+```
+
+```{r Redéfinition des variables meteo.test}
+library(dplyr)
+
+data3=rename(Tempmean=Temperature.daily.mean..2.m.above.gnd.,Humimean=Relative.Humidity.daily.mean..2.m.above.gnd.,MeanPressuremean= Mean.Sea.Level.Pressure.daily.mean..MSL.   , Totalprecipitation= Total.Precipitation.daily.sum..sfc.         ,Snowfall=Snowfall.amount.raw.daily.sum..sfc.     ,Totalcloudmean= Total.Cloud.Cover.daily.mean..sfc.          ,Highcloudmean= High.Cloud.Cover.daily.mean..high.cld.lay.  , Mediumcloudmean= Medium.Cloud.Cover.daily.mean..mid.cld.lay.  ,Lowcloudmean=Low.Cloud.Cover.daily.mean..low.cld.lay.    ,Sunshine= Sunshine.Duration.daily.sum..sfc.           ,Waveradia= Shortwave.Radiation.daily.sum..sfc.         , Windspdmean10m= Wind.Speed.daily.mean..10.m.above.gnd.      , Winddirecmean10m=Wind.Direction.daily.mean..10.m.above.gnd.  , Windspdmean80m= Wind.Speed.daily.mean..80.m.above.gnd.      , Winddirectmean80m=Wind.Direction.daily.mean..80.m.above.gnd.  , Windspdmean900mb= Wind.Speed.daily.mean..900.mb.              ,  Winddirectmean900mb =Wind.Direction.daily.mean..900.mb.          , Windgustmean= Wind.Gust.daily.mean..sfc.                  , Tempmax=Temperature.daily.max..2.m.above.gnd.      ,Tempmin=Temperature.daily.min..2.m.above.gnd.     ,Humimax=Relative.Humidity.daily.max..2.m.above.gnd. ,Humimin= Relative.Humidity.daily.min..2.m.above.gnd. , Meanpressuremax=Mean.Sea.Level.Pressure.daily.max..MSL.     ,Meanpressuremin =Mean.Sea.Level.Pressure.daily.min..MSL.     , Totalcloudmax =Total.Cloud.Cover.daily.max..sfc.          ,Totalcloudmin =Total.Cloud.Cover.daily.min..sfc.           ,Highcloudmax= High.Cloud.Cover.daily.max..high.cld.lay.   , Highcloudmin= High.Cloud.Cover.daily.min..high.cld.lay.   ,Mediumcloudmax =Medium.Cloud.Cover.daily.max..mid.cld.lay.  ,Mediumcloudmin= Medium.Cloud.Cover.daily.min..mid.cld.lay.  , Lowcloudmax=Low.Cloud.Cover.daily.max..low.cld.lay.     
+               ,Lowcloudmin= Low.Cloud.Cover.daily.min..low.cld.lay.    ,Windspdmax10m=Wind.Speed.daily.max..10.m.above.gnd.       ,Windspdmin10m= Wind.Speed.daily.min..10.m.above.gnd.       , Windspdmax80m= Wind.Speed.daily.max..80.m.above.gnd.      ,Windspdmin80m=Wind.Speed.daily.min..80.m.above.gnd.      ,Windspdmax900mb= Wind.Speed.daily.max..900.mb.               ,Windspdmin900mb= Wind.Speed.daily.min..900.mb.               ,Windgustmax= Wind.Gust.daily.max..sfc.                  ,Windgustmin= Wind.Gust.daily.min..sfc.                   
+               ,data1)
+
+names(data3)
+```
+
+#1.2.Vérifier les liens entre les variables 
+#1.2.1.Premières observations sur les corrélations entre les variables : meteo.train.csv(Data2)
+Nous utilisons la matrice de corrélation pour évaluer la dépendance entre plusieurs variables en même temps.
+
+```{r Premières observations sur les corrélations des variables}
+library(corrplot)
+data2.quanti<-data2[,c(7:46)]
+cor.data2.quanti<-cor(data2.quanti,use = "complete")
+corrplot(cor.data2.quanti,type="upper")
+library(Hmisc)
+rcorr(as.matrix(data2[,7:46]))
+
+```
+#1.2.2.Interprétation de la matrice de corrélation
+Nous nous sommes basés sur la matrice de corrélation pour analyser les relations entre les variables quantitatives. Les résultats font apparaitre les corrélations suivantes:
+Forte corrélation positive entre Tempmean, Tempmin et Tempmax
+Forte corrélation positive entre Humimean et Humimin
+Forte corrélation positive entre Meanpressuremax, Meanpressuremin et MeanPressuremean
+Forte corrélation positive entre Totalcloudmean et Lowcloudmean
+Forte corrélation négatives entre Totalcloudmean et Sunshine
+Forte corrélation positive entre Windspdmean10m , Windspdmean80m, windgustmean ,windspedmax10m et windspedmax80m
+Forte corrélation positive entre Winddirecmean10m et Winddirectmean80m
+Forte corrélation positive entre Windspdmean80m , windgustmean ,windspedmax10m et windspedmax80m
+Forte corrélation positive entre windspedmean900mb ,windgustmean,windspedmin900mb,windspedmax900mb
+Forte corrélation positive entre windgustmean et windgustmax
+Forte corrélation positive entre Tempmax et Tempmin
+Forte corrélation positive entre windspdmax10m et windspdmax80m
+Forte corrélation positive entre windspdmin10m et windspdmin80m
+
+#1.2.3 Analyse  de colinéarités entre Les variables
+Nous  utilisons les histogrammes pour détecter une éventuelle colinéarités entre Les variables.
+
+
+```{r Histogrammes de repartition des variables quantitatives }
+attach(data2)
+par(mfrow = c(3, 2))
+hist(x = Humimean, col = "lightblue", main = "Humimean", xlab = "", ylab = "")
+hist(x = Humimin, col = "green2", main = "Humimin", xlab = "", ylab = "")
+hist(x = Tempmax, col = "orange", main = "Tempmax", xlab = "", 
+     ylab = "")
+hist(x = Tempmin, col = "red", main = "Tempmin", xlab = "", 
+     ylab = "")
+hist(x = Tempmean, col = "orange", main = "Tempmean", xlab = "", 
+     ylab = "")
+hist(x = MeanPressuremean, col = "red", main = "MeanPressuremean", xlab = "", 
+     ylab = "")
+hist(x = Meanpressuremax, col = "slategray", main = "Meanpressuremax", xlab = "", ylab = "")
+hist(x = Meanpressuremin, col = "slategray", main = "Meanpressuremin", xlab = "", ylab = "")
+hist(x = Windspdmean80m, col = "red", main = "Windspdmean80m", xlab = "",   ylab = "")
+hist(x = Windspdmean900mb, col = "green2", main = "Windspdmean900mb", xlab = "", ylab = "")
+  
+hist(x = Windspdmax10m, col = "red", main = "Windspdmax10m", xlab = "",   ylab = "")
+hist(x = Winddirectmean80m, col = "violet", main = "Winddirectmean80m", xlab = "",  ylab = "")
+
+hist(x = Winddirectmean900mb, col = "slategray", main = "Winddirectmean900mb", xlab = "", ylab = "")
+hist(x = Winddirecmean10m, col = "lightblue", main = "Winddirecmean10m", xlab = "", ylab = "")
+```
+
+#1.2.4.Interprétation des histogrammes
+D’après les graphiques des histogrammes ci-dessus nous avons détecter les  colinéarités entre les variables suivantes:
+Humimean et Humimin 
+Tempmin,Tempmin,Tempmean 
+Winddirectmean80m,Winddirecmean900mb 
+Windspdmean80m, Windspdmean900mb,Windspdmax10m 
+MeanPressuremean,Meanpressuremax,Meanpressuremin,
+
+#1.3.Recherche des variables  les plus pertinentes:
+Nous utilisons en ce qui suit les boxplots et les diagrammes de densité qui permettent de comprendre visuellement la significativité d’un prédicteur en examinant le degré de chevauchement des valeurs prédictives fixées en fonction de la variable à prédire (pluie.demain).
+
+```{r Distribution des variables quantitative en fonction de variables catégoriéle}
+boxplot(data2$Tempmean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Tempmin~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Tempmax~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Humimean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Humimin~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Meanpressuremax~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Meanpressuremin~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$MeanPressuremean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Totalcloudmean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Lowcloudmean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Sunshine~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$ Windspdmean10m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmean80m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windgustmean~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmax10m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmax80m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Winddirecmean10m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Winddirectmean80m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmean900mb~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmax900mb~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmin900mb~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windgustmax~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$Windspdmin10m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+boxplot(data2$ Windspdmin80m~data2$pluie.demain,varwidth = TRUE, notch = TRUE, outline = TRUE)
+
+```
+# 1.3.1.Intérprétation des résultats de boxplot
+Nous constatons qu’ une valeur élevée de chacune de variables suivantes (Totalcloudmean,Lowcloudmean,Sunshine,Winddirectmean80m,Winddirectmean10m,) est associée avec une forte la probabilité de pleuvoir vs Une faible valeur de la variable est associé avec la probabilité de ne pas pleuvoir.
+En outre certaines variables comme la tempmean Windspmean10m,Windspmean80m et Windgustmean ayant un faible impact sur la  probabilité de pleuvoir .
+
+
+```{r Analyse avec les diagrammes de densités}
+library(ggplot2)
+# Changer la couleur des traits par groupe
+ggplot(data2, aes(x=Tempmean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Tempmin, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Tempmax, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Humimean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Humimin, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Meanpressuremax, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Meanpressuremin, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=MeanPressuremean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Totalcloudmean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Lowcloudmean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Sunshine, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmean10m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmean80m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windgustmean, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmax10m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmax80m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Winddirecmean10m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Winddirectmean80m, color=pluie.demain)) +
+  geom_density()
+
+ggplot(data2, aes(x=Windspdmean900mb, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmax900mb, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmin900mb, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windgustmax, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmin10m, color=pluie.demain)) +
+  geom_density()
+ggplot(data2, aes(x=Windspdmin80m, color=pluie.demain)) +
+  geom_density()
+```
+
+
+#Interprétation de diagramme de densité
+Les résultats obtenus par cette méthode nous confirme la pertinence des variables déjà sélectionnées par la méthode précédente .
+#Meanpressuremax,Meanpressuremin ,Meanpressuremean,Totalcloudmean, #Lowcloudmean,Sunshine,Winspdmax10m,Windirecmean10m,Winddirectmean80m
+
+#1.4Analyse complémentaire 
+Nous avons réalisé une analyse supplémentaire afin de s’assurer de la pertinence des variables présélectionnées 
+#Meanpressuremax,Meanpressuremin ,Meanpressuremean,Totalcloudmean, #Lowcloudmean,Sunshine,Winspdmax10m,Windirecmean10m,Winddirectmean80m,
+
+```{r chart de corrélation}
+library(PerformanceAnalytics)
+datavp <- data2[, c(29,30,9,12,15,16,39,19,21)]
+chart.Correlation(datavp, histogram=TRUE, pch=19)
+```
+#Interprétation de la chart de corrélation
+En haut de la diagonale : On a la valeur de la corrélation plus le niveau de signification en tant qu’étoiles: 
+En bas de la diagonale : les nuages de points bivariés avec une ligne ajustée sont affichés qui présente la linéarité ou non entre les variables
+Dans notre charte nous constatons une forte corrélation entre les variables:
+(Meanpressuremax,Meanpressuremin , Meanpressuremean): la valeur du coefficient de corrélation de Pearson correspondante : 0.90 et 0.97, avec une significativité élevée (p < 0.001) et enfin une corrélation linéaire positive
+Totalcloudmean,Lowcloudmean:la valeur du coefficient de corrélation de Pearson correspondante : 0.90, avec une significativité élevée (p < 0.001) et enfin corrélation linéaire positive
+Windirecmean10m,Winddirectmean80m : la valeur du coefficient de corrélation de Pearson correspondante : 0.97, avec une significativité élevée (p < 0.001) et enfin corrélation linéaire positive
+
+
+#1.5.Détection des valeurs aberrantes. 
+Les valeurs aberrantes dépendent de la distribution, Nous regardons encore une fois les statistiques de la base de données.
+
+
+```{r}
+summary(data2)
+```
+Nous observons que les distributions des variables suivantes sont très étalées: #Totalprecipitation,Snowfall,Totalcloudmin,Highcloudmin,Mediumcloudmin,Lowcloudmin,Windspdmin10m,Windspdmin80m,Windgustmin #Windspdmin900mb. Les autres distributions semblent plutot cohérentes. 
+Pour le moment nous les considérons à priori comme aberrantes compte tenue de la distribution.
+Afin de vérifier si ces variables sont aberrantes nous utilisons la méthode de discrétisation qui consiste à découper  les variables en faisant une distinction entre min, médiane et max.
+
+
+```{r}
+#discrétisation de variable Totalprécipitation
+Breaksprec = c(0, 2 , max(Totalprecipitation)) 
+Totalprecipitation.d = cut(Totalprecipitation, breaks = Breaksprec , include.lowest = TRUE)
+summary(Totalprecipitation.d)
+#discrétisation de variable Snowfall
+BreaksSnow = c(0, 0.04, max(Snowfall))
+Snowfall.d = cut(Snowfall, breaks = BreaksSnow , include.lowest = TRUE)
+summary(Snowfall.d)
+#discrétisation de variable Totalcloudmin
+BreaksTTcloumin = c(0, 8, max(Totalcloudmin))
+Totalcloudmin.d = cut(Totalcloudmin, breaks = BreaksTTcloumin , include.lowest = TRUE)
+summary(Totalcloudmin.d)
+#discrétisation de variable Highcloudmin
+Breakshigcloumin = c(0, 0.9,  max(Highcloudmin))
+Highcloudmin.d = cut(Highcloudmin, breaks = Breakshigcloumin , include.lowest = TRUE)
+summary(Highcloudmin.d)
+#discrétisation de variable Mediumcloudmin
+Breaksmedcloumin = c(0, 2, max(Mediumcloudmin))
+Mediumcloudmin.d = cut(Mediumcloudmin, breaks = Breaksmedcloumin , include.lowest = TRUE)
+summary(Mediumcloudmin.d)
+#discrétisation de variable Lowcloudmin
+Breakslowcloumin = c(0, 3, max(Lowcloudmin))
+Lowcloudmin.d = cut(Lowcloudmin, breaks = Breakslowcloumin , include.lowest = TRUE)
+summary(Lowcloudmin.d)
+#discrétisation de variable Windspdmin10m
+Breakswindspmin10 = c(0, 2, max(Windspdmin10m))
+Windspdmin10m.d = cut(Windspdmin10m, breaks = Breakswindspmin10 , include.lowest = TRUE)
+summary(Windspdmin10m.d)
+#discrétisation de variable Windspdmin80m
+BreaksWindspdmin80 = c(0, 4, max(Windspdmin80m))
+Windspdmin80m.d = cut(Windspdmin80m, breaks = BreaksWindspdmin80 , include.lowest = TRUE)
+summary(Windspdmin80m.d)
+#discrétisation de variable Windspdmin900mb
+Breakswindspdmin900mb = c(0, 11, max(Windspdmin900mb))
+Windspdmin900mb.d = cut(Windspdmin900mb, breaks = Breakswindspdmin900mb , include.lowest = TRUE)
+summary(Windspdmin900mb.d)
+#discrétisation de variable Windgustmin
+Breakswindgtmin = c(0, 6, max(Windgustmin))
+Windgustmin.d = cut(Windgustmin, breaks = Breakswindgtmin , include.lowest = TRUE)
+summary(Windgustmin.d)
+
+```
+
+La discrétisation nous a permis de purifier nos variables . En effet nous avons supprimé celles qui représentent une forte déviation par apport à la moyenne . La compariason entre la médiane, min et max fait apparaitre que les variables suivantes sont étalées: #Totalprecipitation,Snowfall,Totalcloudmin,Highcloudmin,Mediumcloudmin,Lowcloudmin,Windspdmin10m,Windspdmin80m #et Windgustmin. 
+
+
+
+
+#1.6 Proposition d’un premier modèle :
+Nous nous sommes basé sur les testes analysé précédemment pour comparer entre plusieurs modèles et en choisir le plus significatif. 
+
+```{r  }
+ # Premier étape nous supprimons les variables aberrantes  
+g1=glm(pluie.demain~.-Totalprecipitation-Snowfall-Totalcloudmin-Highcloudmin-Mediumcloudmin-Lowcloudmin-Windspdmin10m
+       -Windspdmin80m - Windgustmin -Hour-Minute-X-Day-Year-Month
+       ,family = binomial, data = data2)
+summary(g1)
+# Nous constatons  que le modèle g1 présente plusieurs variables ayant une valeur p-value  non significatif avec un AIC=1322.1
+# Nous essayons d’améliorer sa qualité dans l’étape suivantes (g2)
+# Deuxième étape suppression de certaines variables qui présentent une forte corrélation
+
+#modèle g2
+
+g2=glm(pluie.demain~.-Totalprecipitation-Snowfall-Totalcloudmin-Highcloudmin-Mediumcloudmin-Lowcloudmin-Windspdmin10m
+       -Windspdmin80m - Windgustmin -Hour-Minute-X-Day-Year-Month
+     -Tempmax-Tempmin -Humimean -Windspdmean10m-Windgustmean-Windspdmax80m
+     -Windspdmin900mb-Windspdmax900mb,family = binomial, data = data2)
+summary(g2)
+# Dans cette étape  nous observons  que l’AIC du modèle g2 a diminué.
+#Nous appliquons par la suite l’Anova sur ce modèle (g2) pour voir quelle covariable ayant un p-value non sgnificatif 
+anova(g2,test = "LRT")
+#Suite à cette étape nous avons supprimé les variables : Lowcloudmean ,Lowcloudmax,Humimax
+#modèle g3:
+g3=glm(pluie.demain~.-Totalprecipitation-Snowfall-Totalcloudmin-Highcloudmin-Mediumcloudmin-Lowcloudmin-Windspdmin10m
+       -Windspdmin80m - Windgustmin -Hour-Minute-X-Day-Year-Month
+     -Tempmax-Tempmin -Humimean -Windspdmean10m-Windgustmean-Windspdmax80m
+     -Windspdmin900mb-Windspdmax900mb
+     -Humimax-Lowcloudmax-Highcloudmean
+,family = binomial, data = data2)
+summary(g3)
+# Effectuer un comparaison entre les modèles g1 et g3
+anova(g3,g2,test = "LRT") # g3 sgnificatif 
+# le modèle g2 possède un p-value non significatif 0.9164 donc on choisit le modèle g3
+
+# Effectuer un comparaison entre les modèles g1 et g3
+anova(g3,g1,test = "LRT") # g3 sgnificatif 
+#le modele g1 possède un p-value non significatif 0.9258 donc on choisit le modèle g3
+
+# Appliquer les Critères AIC et BIC pour comparer g1 et g3
+
+#Après cette comparaison nous choisissons le modèle g3
+#  choisir le modele g3 
+
+c(BIC(g3),BIC(g1))
+c(AIC(g3),AIC(g1))
+
+# #modèle g4=step(g3)
+step(g3)
+
+g4=glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Lowcloudmean + Waveradia + Windspdmean80m + Winddirectmean80m + 
+    Windspdmean900mb + Winddirectmean900mb + Meanpressuremax + 
+    Meanpressuremin + Highcloudmax + Mediumcloudmax + Windspdmax10m, 
+    family = binomial, data = data2)
+summary(g4)
+
+
+
+```
+
+
+#2-Interprétation de modèle choisi 
+Nous nous intéressons plus précisément aux estimateurs et au p-value .
+On prend les exemples de deux covariables suivantes.
+MeanPressuremean est significative avec un impact positif sur la probabilité que le pluie tombe.
+exp(5.061e-01 )=1.658809 x Probabilité 
+ Par contre Windspdmean80m est sgnificative mais son  impact sur la probabilité que le pluie tombe est négatif
+exp(-5.061e-01 )=0.947129xProbabilité 
+
+#2.1Evaluation de la qualité de modèle choisie (g4=step(g3))
+Nous nous focalisons sur la déviance du modèle .Les tests de rapport des vraisemblances et le calcul de la p_value à l’écart de degré de liberté entre le modèle Null à la cste et le modèle retenu qui nous  donne la significativité globale du modèle. La sortie nous indique :
+Null deviance: 1635.4  on 1179  degrees of freedom
+Residual deviance: 1267.1  on 1165  degrees of freedom
+
+```{r}
+pchisq(1635.4 - 1267.1 , 1179 - 1165 , lower = F)
+
+```
+On remarque que P-value est très faible donc on rejette le modèle sans covariable et on garde notre modèle=Notre modèle est utile
+
+Dans le sommaire du résultat de glm, la déviance du modèle ajusté est indiquée comme Residual Deviance. Le sommaire inclut aussi une autre valeur, Null Deviance, qui correspond à la déviance du modèle nul ne comptant aucun prédicteur. Ces deux valeurs jouent un rôle semblable à la somme des écarts carrés résiduels et la somme des écarts carrés totaux. On peut donc définir le pseudo R2 (ou R2 de McFadden) comme la fraction de la déviance du modèle nul expliquée par le modèle incluant les prédicteurs
+
+
+```{r}
+#### Extraction des coefficients du modele 
+coef(g4)
+
+#### Extraction des résidus
+resid(g4)
+
+
+#### pseudo_R2
+pseudo_R2 <- 1 - g2$deviance/g2$null.deviance
+pseudo_R2
+library(DescTools)
+PseudoR2(g4)
+PseudoR2(g4,"all")
+
+
+
+
+
+```
+Pseudo R2 fait apparaitre plusieurs critères avec des valeurs différentes. Nous ne pouvons pas avoir des informations claires permettant de valider notre modèle . Nous utilisons donc AIC et BIC pour l’évaluation de modèle
+Après avoir obtenu un modèle, nous  diagnostiquons la régression afin de valider ou non le modèle. L’analyse des résidus est de ce point de vue très importante. Il est important de noter qu’en régression logistique, on s’intéresse la plupart du temps aux résidus de déviance.. On construit généralement un index plot pour détecter les valeurs aberrantes (en dehors des lignes)
+
+
+
+```{r}
+par(mfrow = c(1, 1))
+plot(rstudent(g4), type = "p", cex = 0.5, ylab = "Résidus studentisés ", 
+    col = "springgreen2", ylim = c(-3, 3))
+abline(h = c(-2, 2), col = "red")
+
+
+
+```
+Le graphique des résidus affiche une répartition relativement homogène des résidus, on constate alors que la distribution des résidus est symétrique autour de 0 , la symétrie de résidu est un signe que leur distribution suit la loi normale, On remarque aussi la présence de quelques points aberrants(en dehors de lignes)
+Analyse de la distribution des résidus suivant la loi normale
+
+
+
+
+```{r}
+library(boot)
+glm.diag.plots(g4)
+```
+
+##Interprétation :
+diagramme Quantile-Quantile  Q-Q plot (en haut à droite)montre que les queues droite et gauche sont petites et les valeurs extrêmes du graphique tombent près du centre sauf une petite déviation au milieu .
+Nous avons  donc une distribution uniforme des données
+
+
+#Analyse ACP (modèleg4) :
+
+Nous appliquons sur les 14 variables de g4 une analyse ACP afin de les synthétiser en quelles nouvelles variables appeler composantes principalement qui peuvent étre visualiser graphiquement.
+
+```{r}
+library("FactoMineR")
+library("factoextra")
+library("yarrr")
+
+data2.global=data2[,c(7,9,14,15,17,20:23,29,30,33,39,47)]
+summary(data2.global)
+
+#Sélection du nombre de composantes: Nous utilisons le critère du coude pour le choix des axes 
+
+fviz_eig(pca.global,addlabels = TRUE)
+
+fviz_cos2(pca.global, choice = "var", axes = 1)
+
+fviz_cos2(pca.global, choice = "var", axes = 2)
+
+#La proportion d’inertie expliquée par les 3 premiers axes est de de 69 %. Cela reste acceptable pour 14 variables.:
+
+#summary(mkt.pca.global)Description des axes selon les variables
+pca.global=PCA(data2.global,quali.sup=14,graph=FALSE)
+plot(pca.global,choix = "var",cex=0.75)
+
+# corrélation des varibales avec les différentes dimensions  
+corrplot(var$cos2, is.corr=FALSE)
+```
+
+#Le graphique ci-dessus est également connu sous le nom de graphique de corrélation des variables. Il montre les relations #entre toutes les variables. Il peut être interprété comme suit:
+
+Les variables positivement corrélées sont regroupées.
+Les variables négativement corrélées sont positionnées sur les côtés opposés de l’origine du graphique .
+La distance entre les variables et l’origine mesure la qualité de représentation des variables. Les variables qui sont loin de l’origine sont bien représentées par l’ACP
+
+
+
+# 3. Régression par Recherche Exhaustive
+Autre méthode de sélection d’un meilleur modèle est de celle Best subset. Il s'agit d'une technique de construction de modèle permettant de trouver le meilleur groupe (sous-ensemble) de variables prédictives qui prévoient le mieux les réponses d'une variable dépendante. La sélection de modèle peut être vue comme la recherche du modèle optimal, au sens d’un critère choisi, parmi toutes les possibilités. On voudrait chercher le modèle de régression qui explique le mieux si la pluie tombe le lendemain ou non.
+La principale fonction pour faire de la sélection de variables est regsubsets
+
+
+```{r}
+#Utiliser la fonction regsubsets() (du package leaps pour effectuer une sélection de variables via l’approche exhaustive Best Subset.
+library(leaps)
+ res1 = regsubsets(pluie.demain~.-X-Year-Month-Day-Hour-Minute-Snowfall-Highcloudmin-Mediumcloudmin,data=data2,
+                    nbest = 1,       # 1 seul meilleur pour chaque nombre de variables
+                    nvmax = NULL,    # NULL pas de limites pour le 
+                      force.in = NULL,  # pas de variables à inclure de force
+                      force.out = NULL,  # pas de variables à exclure de force.
+            method = "exhaustive")  # choix de la méthode exhaustive)
+names(res1)
+
+```
+
+
+
+```{r}
+reg.summary <- summary(res1)
+reg.summary
+```
+
+Nous réalisons des plots  suivants selon les critères : adjr2, BIC et R2
+```{r}
+plot(res1,scale="adjr2")
+
+```
+
+
+```{r}
+ plot(res1,scale="r2")
+```
+
+
+```{r}
+plot(res1,scale ="bic")
+```
+
+Pour  choisir le modèle à sélectionner, nous identifions l’emplacement du point maximum / minimum pour chaque critère : RSS, R2 ajusté, Cp et BIC. Dans chaque cas, afficher les variables sélectionnées.
+
+```{r}
+min.rss <- which.min(reg.summary$rss)
+max.adjr2 <- which.max(reg.summary$adjr2)
+min.cp <- which.min(reg.summary$cp)
+min.bic <- which.min(reg.summary$bic)
+#
+min.rss
+#
+max.adjr2
+#
+min.cp
+#
+min.bic
+
+```
+
+#La liste des variables sélectionnées en se basant chaque fois sur les critères : RSS, BIC ,CP et adjr2
+
+```{r}
+names(which(reg.summary$which[min.rss,]==TRUE))
+```
+
+
+```{r}
+names(which(reg.summary$which[max.adjr2,]==TRUE))
+```
+
+
+```{r}
+names(which(reg.summary$which[min.cp,]==TRUE))
+```
+
+
+```{r}
+names(which(reg.summary$which[min.bic,]==TRUE))
+```
+
+Sur une même fenêtre graphique nous représentons les courbes des différents critères. Nous ajoutons sur chaque courbe, le maximum/minimum correspondant.
+
+```{r}
+par(mfrow =c(2,2))
+plot(reg.summary$rss,xlab="Number of Variables",ylab="RSS",type="l")
+points(min.rss,reg.summary$rss[min.rss],col ="red",cex =2, pch =20)
+plot(reg.summary$adjr2,xlab="Number of Variables ",ylab="Adjusted RSq",type="l")
+points(max.adjr2,reg.summary$adjr2[max.adjr2],col ="red",cex =2, pch =20)
+plot(reg.summary$cp,xlab="Number of Variables ",ylab="Cp",type="l")
+points(min.cp,reg.summary$cp[min.cp],col ="red",cex =2, pch =20)
+plot(reg.summary$bic,xlab="Number of Variables ",ylab="BIC",type="l")
+points(min.bic,reg.summary$bic[min.bic],col ="red",cex =2, pch =20)
+```
+
+#Nous réalisons une régression avec le meilleur modèle selon la statistique BIC
+
+```{r}
+var.bic <- names(which(reg.summary$which[min.bic,]==TRUE))
+var.bic.formula <- paste("pluie.demain", "~", paste(var.bic[-1], collapse=" + "))
+var.bic.formula
+```
+
+```{r}
+best.model <- glm(var.bic.formula,family=binomial, data=data2)
+summary(best.model)
+```
+
+Le résultat de glm montre que les 5 variables ayant tous un p-value sgnificatif avec un AIC  de 1312. Ces variables , malgré leur importance , n’explique qu’une partie des informations.D ‘autres variables pourraient compléter notre modèle
+
+
+#Choisi le meilleur modele suivant le critère RSS
+
+```{r}
+var.rss <- names(which(reg.summary$which[min.rss,]==TRUE))
+var.rss.formula <- paste("pluie.demain", "~", paste(var.rss[-1], collapse=" + "))
+var.rss.formula
+```
+
+```{r}
+best.model1 <- glm(var.rss.formula,family=binomial, data=data2)
+summary(best.model1)
+```
+
+Avec le critère RSS on a un modèle qui présente un glm avec plusieurs variables dont 6 seulement qui sont significatives. Les résultats font apparaitre plusieurs variables ont risque d’avoir un problème de sur-dispersion .
+
+Choisir le meilleur modèle suivant le critère adjr2
+```{r}
+var.adjr2 <- names(which(reg.summary$which[max.adjr2,]==TRUE))
+var.adjr2.formula <- paste("pluie.demain", "~", paste(var.adjr2[-1], collapse=" + "))
+var.adjr2.formula
+
+```
+
+
+```{r}
+best.model2 <- glm(var.adjr2.formula,family=binomial, data=data2)
+summary(best.model2)
+```
+Le modèle choisi selon le critère adjr2 comprend plusieurs variables significatives. De même la valeur de AIC est nettement meilleure (1289.7) des autres modèles.
+
+Choisir le meilleur modèle suivant le critère Cp
+```{r}
+var.cp <- names(which(reg.summary$which[min.cp,]==TRUE))
+var.cp.formula <- paste("pluie.demain", "~", paste(var.cp[-1], collapse=" + "))
+var.cp.formula
+
+
+```
+
+
+```{r}
+best.model3 <- glm(var.cp.formula,family=binomial, data=data2)
+summary(best.model3)
+
+```
+Le modèle choisi selon le critère adjr2 comprend plusieurs variables significatives. De même la valeur de AIC est nettement meilleure (1287.2) des autres modèles.
+La performance du modèle issu d’une méthode d’apprentissage s’évalue par sa capacité de prévision. La mesure de cette performance est très importante puisque, d’une part, elle permet d’opérer une sélection de modèle dans une famille associée à la méthode d’apprentissage utilisée et, d’autre part, elle guide le choix de la méthode en comparant chacun des modèles optimisés à l’étape précédente. Enfin, elle fournit une mesure de la qualité ou encore de la confiance que l’on peut accorder à la prévision.
+
+
+#. Partager l’échantillon en un ensemble d’apprentissage et un ensemble test (par exemple en prenant 2/3:1/3).
+
+```{r}
+set.seed(10)
+train <- sample(1:nrow(data2),2*nrow(data2)/3)
+test <- (-train)
+test
+```
+
+Utiliser regsubsets() sur l’ensemble d’apprentissage à l’aide de la méthode exhaustive.
+```{r}
+regfit.best <- regsubsets(pluie.demain~.-X-Year-Month-Day-Hour-Minute,data=data2[train,],nvmax=10)
+
+```
+
+
+Calculer l’erreur de test pour le meilleur modèle de chaque taille.
+
+```{r}
+test.mat <- model.matrix(pluie.demain~.-X-Year-Month-Day-Hour-Minute,data=data2[test,])
+
+# initialisation de l'erreur de prediction
+val.errors <- rep(NA ,10)
+for(i in 1:10){
+  # extraction des estimateurs des coefs
+  coefi <- coef(regfit.best,id=i)
+  # calcul de la prediction
+  pred5 <- test.mat[,names(coefi)]%*%coefi
+  # calcul de l'erreur de prediction
+  val.errors[i] <- mean((data2$pluie.demain[test]-pred5)^2)
+}
+val.errors
+
+
+```
+
+Sur l’ensemble des données, effectuer une sélection de variables par la méthode exhaustive et sélectionner le meilleur modèle.
+
+```{r}
+regfit.best <- regsubsets(pluie.demain~.-X-Year-Month-Day-Hour-Minute
+                          ,data=data2,nvmax=10)
+coef(regfit.best,which.min(val.errors))
+```
+
+```{r}
+best.model <- glm(var.bic.formula,family=binomial, data=data2)
+summary(best.model)
+```
+
+Le meilleur modèle généré par cette méthode contient des informations limitées. Nous ne retenons pas pour le moment ce modèle.
+
+
+
+ Suite aux différents méthodes mobilisées nous constatons que le modèle g4 est le plus significatif ( sur la base de l’AIC et le BIC) De même, les variables selectionnées représentent une bonne quantité d’informations. Pour confirmer ce choix nous mobilisons la méthode de validation croisée pour confirmer notre choix 
+
+En ce qui suit nous présentons la méthode :
+On calcule une matrice de confusion : et donc on mesure un taux d’erreur on évalue l’air sous la courbe ROC sur l’échantillon d’apprentissage et sur l’échantillon test .
+
+
+#1.4 .Validation croisé avec le modèle g4
+
+```{r}
+train = sample(c(T, F), nrow(data2), replace = T, prob = c(.6, .4))
+# nous utilisons uniquement la base d'entrainement
+
+#g4 step(g3)
+
+g4 = 
+  glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Lowcloudmean + Waveradia + Windspdmean80m + Winddirectmean80m + 
+    Windspdmean900mb + Winddirectmean900mb + Meanpressuremax + 
+    Meanpressuremin + Highcloudmax + Mediumcloudmax + Windspdmax10m, 
+    family = binomial, data = data2[train, ])
+summary(g4)
+
+
+```
+
+
+```{r}
+#Nous éffectuons la prédiction uniquement sur la base de test
+pred1 = predict(g4, data2[!train, ], type = "response")
+# Nous évaluons l'erreur de prédiction
+mean(abs(pred1 - data2[!train, "pluie.demain"]), na.rm = T)
+
+#Matrice de confusion
+table(data2[!train, "pluie.demain"], pred1>.5)
+mean(data2[!train, "pluie.demain"] == (pred1>.5), na.rm=T)
+
+# change de seuil
+table(data2[!train, "pluie.demain"], pred1>.7)
+mean(data2[!train, "pluie.demain"] == (pred1>.7), na.rm=T)
+
+#  Nous avons comparé deux seuils différents qui sont respectivement 0.5 et
+ #0.7. En utilisant le seuil de 0.7 nous constatons l’exitance de plus de  «Faux positifs » et de « vrais négatifs » 
+
+
+```
+
+#1.4.1.Vérifier la qualité de prédiction (modèle g4)
+Nous allons en ce qui suit étudier la courbe ROC et mesurer l’AUC
+
+
+```{r}
+library(ROCR)
+library(ggplot2)
+
+p = prediction(pred1, data2[!train, ]$pluie.demain)
+Perf = performance(p, "tpr", "fpr")
+plot(Perf, colorize = TRUE, main = "ROC ")
+
+table(data2[!train, "pluie.demain"], pred1>.5)
+performance(p, "auc")@y.values[[1]]
+
+
+
+
+```
+
+#Interprétation de la courbe ROC (modèle g4):
+Les taux de vrais positifs augmentent rapidement plus que les faux positifs. Nous observons également que la courbe est au dessus de la diagonale.
+
+L’air sous la courbe est de 0.81 ce qui signifie que le modèle est de bonne qualité. Plus AUC augmente plus le modèle présente une bonne qualité de prédiction
+
+
+#Nous essayons maintenant de comparer les résultats de prédiction de deux modèles g4 et celui qui est sélectionné par la méthode de régression par recherche exhaustive. 
+Nous représentons ci-dessous la courbe de  modèle sélectionné par la méthode de régression par recherche exhaustive. 
+
+```{r}
+library(ROCR)
+p1 = prediction(pred5, data2$pluie.demain[test])
+Perf1 = performance(p1, "tpr", "fpr")
+plot(Perf1, colorize = TRUE, main = "ROC ")
+table(data2$pluie.demain[test], pred5>.5)
+performance(p1, "auc")@y.values[[1]]
+mean(data2$pluie.demain[test] == (pred5>.5), na.rm=T)
+mean(abs(pred5 - data2$pluie.demain[test]), na.rm = T)
+```
+La courbe ROC n’augmente d’une façon significative par rapport à celle du modèle g4
+
+
+#Etude comparative entre les deux modèles 
+
+```{r}
+# modele best model3
+library(ROCR)
+p1 = prediction(pred5, data2$pluie.demain[test])
+Perf1 = performance(p1, "tpr", "fpr")
+plot(Perf1, colorize = TRUE, main = "ROC ")
+table(data2$pluie.demain[test], pred5>.5)
+performance(p1, "auc")@y.values[[1]]
+mean(data2$pluie.demain[test] == (pred5>.5), na.rm=T)
+mean(abs(pred5 - data2$pluie.demain[test]), na.rm = T)
+
+#modèle g4
+p = prediction(pred1, data2[!train, ]$pluie.demain)
+Perf = performance(p, "tpr", "fpr")
+plot(Perf, colorize = TRUE, main = "ROC ")
+table(data2[!train, ]$pluie.demain, pred1>.5)
+performance(p, "auc")@y.values[[1]]
+mean(data2[!train, ]$pluie.demain == (pred1>.5), na.rm=T)
+mean(abs(pred1- data2[!train, ]$pluie.demain), na.rm = T)
+
+library(ROCR)
+
+p1 = prediction(pred5, data2$pluie.demain[test])
+Perf1 = performance(p1, "tpr", "fpr")
+p = prediction(pred1, data2[!train, ]$pluie.demain)
+Perf = performance(p, "tpr", "fpr")
+library(ROCR)
+data(ROCR.simple)
+preds <- cbind(p = ROCR.simple$predictions, 
+                p1= abs(ROCR.simple$predictions + 
+                rnorm(length(ROCR.simple$predictions), 0, 0.1)))
+
+pred.mat <- prediction(preds, labels = matrix(ROCR.simple$labels, 
+                nrow = length(ROCR.simple$labels), ncol = 2) )
+
+perf.mat <- performance(pred.mat, "tpr", "fpr")
+plot(perf.mat, colorize = TRUE)
+
+
+```
+
+Tableau récapitulatif  des valeurs qui présentent la qualité de prédiction de chaque modèle  :
+	     Erreur de prédiction	Taux de bonne prédiction	Taux de vrai negatif	Taux de faux positif	AUC
+Modele g4	 0.35	               0.74	                      68	                   52	              0.81
+Best model3	0.38	             0.72                     	62	                 46	              0.78
+
+1-Le taux d’erreur de prédiction du modèle choisi g4 est plus petit que l’erreur de prédiction du modèle validé par la régression de recherche exhaustive (Best model3)
+
+2-Le modèle g4 présente un AUC plus élevé q que Best model3 c’est un bon indicateur pour comparer les deux classifieurs 
+
+3- Le taux de bonne prédiction du modèle g4 est supérieur de taux de prédiction de modèle (Best model3)
+D’après tous ces interprétations nous constatons que le modèle g4 donne une bonne qualité de prédiction par apport au modèle (Best model3)
+
+
+#Afin de s’assurer de la qualité de modèle choisi( g4 ),nous comparons les résultats à travers une régression Probit et une régression logistique : 
+
+
+```{r}
+#régression probit
+g5= glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Lowcloudmean + Waveradia + Windspdmean80m + Winddirectmean80m + 
+    Windspdmean900mb + Winddirectmean900mb + Meanpressuremax + 
+    Meanpressuremin + Highcloudmax + Mediumcloudmax + Windspdmax10m,  
+    family = binomial(link="probit"),data=data2)
+
+summary(g5)
+# Validation croisée en probit
+# Nous  utilison uniquement la base d'entrainement
+
+g6 = 
+ glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Windspdmean80m + Winddirectmean80m + Winddirectmean900mb + 
+    Meanpressuremax + Meanpressuremin + Totalcloudmax + Totalcloudmin + 
+    Mediumcloudmax + Windspdmax10m + Windspdmin10m + Windgustmax, 
+    family = binomial(link="probit"), data = data2[train, ])
+summary(g6)
+
+# Nous effectuons une prédiction, uniquement sur la base de test
+pred4 = predict(g6, data2[!train, ], type = "response")
+# Nous évaluons l'erreur de prédiction
+mean(abs(pred4 - data2[!train, "pluie.demain"]), na.rm = T)
+
+# Matrice de confusion
+table(data2[!train, "pluie.demain"], pred4>.5)
+mean(data2[!train, "pluie.demain"] == (pred4>.5), na.rm=T)
+
+
+# Validation croisée k-fold
+
+k = 10
+index = sample(1:k, nrow(data2), replace=T)
+res.logistique = rep(NA, k)
+res.probit = rep(NA, k)
+
+for(i in 1:k){
+  reg.logistique = glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Windspdmean80m + Winddirectmean80m + Winddirectmean900mb + 
+    Meanpressuremax + Meanpressuremin + Totalcloudmax + Totalcloudmin + 
+    Mediumcloudmax + Windspdmax10m + Windspdmin10m + Windgustmax, 
+    family = binomial,
+    data = data2[index != i, ]
+  )
+  
+  reg.probit = 
+   glm( pluie.demain ~ Tempmean + MeanPressuremean + Mediumcloudmean + 
+    Windspdmean80m + Winddirectmean80m + Winddirectmean900mb + 
+    Meanpressuremax + Meanpressuremin + Totalcloudmax + Totalcloudmin + 
+    Mediumcloudmax + Windspdmax10m + Windspdmin10m + Windgustmax, 
+    
+    family = binomial(link="probit"),
+    data = data2[index != i, ]
+  )
+  
+  pred.logistique = predict(reg.logistique, newdata=data2[index == i, ],
+                            type="response")
+  pred.probit = predict(reg.probit, newdata=data2[index == i, ],
+                            type="response")
+  
+  res.logistique[i] = mean(data2[index==i, "Pluie.demain"] == (pred.logistique >.5), na.rm = T)
+  res.probit[i] = mean(data2[index==i, "Pluie.demain"] == (pred.probit >.5), na.rm = T)
+  
+}
+
+AIC(reg.probit)
+AIC(reg.logistique)
+
+# Nous avons un AIC de reg.Probit plus grande que AIC reg.logitique
+# Le modèle reg.logistique  et mieux que le modèle reg.probit suivant le 
+# critère de AIC
+
+
+
+```
+
+
+Nous allons faire maintenant une étude comparative entre les deux types de regression 
+
+```{r}
+#regression probit
+library(ROCR)
+p2 = prediction(pred4, data2[!train, ]$pluie.demain)
+Perf2 = performance(p2, "tpr", "fpr")
+plot(Perf2, colorize = TRUE, main = "ROC ")
+table(data2[!train, ]$pluie.demain, pred4>.5)
+performance(p2, "auc")@y.values[[1]]
+mean(data2[!train, ]$pluie.demain == (pred4>.5), na.rm=T)
+mean(abs(pred4 - data2[!train, ]$pluie.demain), na.rm = T)
+
+#regression logistique
+p = prediction(pred1, data2[!train, ]$pluie.demain)
+Perf = performance(p, "tpr", "fpr")
+plot(Perf, colorize = TRUE, main = "ROC ")
+table(data2[!train, ]$pluie.demain, pred1>.5)
+performance(p, "auc")@y.values[[1]]
+mean(data2[!train, ]$pluie.demain == (pred1>.5), na.rm=T)
+mean(abs(pred1- data2[!train, ]$pluie.demain), na.rm = T)
+
+library(ROCR)
+
+p = prediction(pred1, data2[!train, ]$pluie.demain)
+Perf = performance(p, "tpr", "fpr")
+p2 = prediction(pred4, data2[!train, ]$pluie.demain)
+Perf2 = performance(p2, "tpr", "fpr")
+library(ROCR)
+data(ROCR.simple)
+preds <- cbind(p = ROCR.simple$predictions, 
+                p2= abs(ROCR.simple$predictions + 
+                rnorm(length(ROCR.simple$predictions), 0, 0.1)))
+
+pred.mat <- prediction(preds, labels = matrix(ROCR.simple$labels, 
+                nrow = length(ROCR.simple$labels), ncol = 2) )
+
+perf.mat <- performance(pred.mat, "tpr", "fpr")
+plot(perf.mat, colorize = TRUE)
+```
+
+Tableau récapitulatif  des valeurs qui présentent la qualité de prédiction de chaque modèle  :
+
+
+                  	Erreur de prédiction	Taux de bonne prédiction	Taux de vrai negative 	Taux de faux positive	AUC
+Reg.logistique (model g4)	 0.35	               0.74	                     68	                     52	              0.81
+Reg.probit                 0.36	               0.74	                     58	                    57	               0.80
+1-Le taux d’erreur de prédiction du modèle choisi g4 est plus petit que l’erreur de prédiction du modèle validé par la régression logistique
+
+2-Le modèle g4 présente un AUC plus élevé que le modèle de la régression logistique c’est un bon indicateur pour comparer les deux classifieurs 
+
+3- Le taux de bonne prédiction du modèle g4 est supérieur de taux de prédiction de modèle de la régression logistique
+
+--->Suites à ces différentes étapes d’analyse et d’étude comparatives, nous choisissons le modèle g4 
+
+
+
+#Sur la base de modèle choisi, nous allons proposer une prédiction pour le fichier méteo-test 
+
+```{r}
+pred= predict(g4, newdata = data3, type = "response")
+pred2 = (pred >= 0.5)
+pred2
+```
+
+
+```{r}
+# enregistrer pred2
+write.csv(pred2,file = "pred2.csv",row.names = FALSE)
+summary(pred2)
+# ajouter colonne prediction 
+data5=cbind(data3,pred2)
+# renomer la colonne 
+library(dplyr)
+data5=rename(pluie.demain=pred2,data5)
+
+write.csv(data5,file = "data5.csv",row.names = FALSE)
+
+```
+
+
+
+
